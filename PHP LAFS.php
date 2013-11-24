@@ -146,7 +146,7 @@
 		
 		foreach ($parts as $p) {
 			if (!p) {
-				return null; // On NULL send a 404
+				return null; // On NULL send a 404, TODO: Handle missing
 			}
 		}
 		
@@ -161,19 +161,28 @@
 	}
 	
 	function reconstitute($nodes, $fileID) {
+		
 		$data = "";
+		
 		for ($x = 0; $x < count($nodes); $x++) { // K is part V is ip
+			
 			$postVars = array(
 				"fileID" => $fileID,
 				"part" => $x
 			);
+			
 			$responce = getPage($nodes[$x], $postVars);
+			
 			if (!$responce["status"]) {
 				return null; // NULL means could not reconstitute, node was bad. TODO: More than one node looked at per part
 			}
+			
 			$data .= $responce["data"];
+			
 		}
+		
 		return $data;
+		
 	}
 	
 	/*
@@ -219,52 +228,76 @@
 		$nodes = $q->fetchAll(PDO::FETCH_CLASS, "Node");
 		return $nodes[0];
 	}
+	
 	/**
 	 * Add a new file into the network
 	 */
-	function storeFile($path, $name, $directory, $password) {
+	function storeFile($path, $name, $directory, $password) { // TODO: Test
 		
 		$pass = hash("SHA256", $password, true);
-		$fileData = encryptFile($path, $pass); // TODO: chop file into 20 MB segments
+		
+		$fileData = splitData(encryptFile($path, $pass)); // TODO: chop file into 10 MB segments (To align with normal max post size)
+		
 		$nodes = findNodes(count($fileData) * 2);
-		shuffle($fileData);
+		
+		$stored = array();
+		
 		$fileParts = count($fileData);
+		
 		$storageInfo = array();
+		
 		$findID = uniqid($fileParts, true);
-		for ($x = 0; $x < $fileParts - 1; $x += 2) {
-			$node->sendFile($findID, $fileData[$x], $x); // TODO Handle file upload errors
-			$node->sendFile($findID, $fileData[$x + 1], $x + 1);
-			if (!isset($storageInfo[$node->name])) {
-				$storageInfo[$node->name] = array();
+		
+		while (count($stored) < $fileParts) {
+			
+			shuffle($fileData);
+			
+			shuffle($nodes);
+			
+			for ($x = 0; $x < $fileParts; $x++) {
+				
+				if (!isset($nodes[$x])) {
+					continue;
+				}
+				
+				$node = $nodes[$x];
+				
+				$node->sendFile($findID, $fileData[$x], $x); // TODO Handle file upload errors
+				
+				if (!isset($storageInfo[$node->name])) { // Dont add if error
+					$storageInfo[$node->name] = array();
+				}
+				
+				$storageInfo[$node->name][] = $x;
+				
+				$stored[$x] = true;
+				
 			}
-			$storageInfo[$node->name][] = $x;
-			$storageInfo[$node->name][] = $x + 1;
+			
 		}
-		shuffle($nodes);
-		for ($x = 0; $x < $fileParts - 1; $x += 2) {
-			$node->sendFile($findID, $fileData[$x], $x); // TODO Handle file upload errors
-			$node->sendFile($findID, $fileData[$x + 1], $x + 1);
-			if (!isset($storageInfo[$node->name])) {
-				$storageInfo[$node->name] = array();
-			}
-			$storageInfo[$node->name][] = $x;
-			$storageInfo[$node->name][] = $x + 1;
-		}
+		
 		unset($x);
 		unset($fileData);
 		unset($nodes);
+		
 		insertDatabaseInfo($findID, $name, $directory, $fileParts, $storageInfo); // TODO: Encrypt storage info so only the user with the pass can get to the files
+		
 	}
 	
 	function insertDatabaseInfo($findID, $name, $directory, $parts, $info) {
+		
 		global $db, $addFile;
+		
 		$q = $db->prepare($addFile);
+		
 		$q->bindParam("fileID", $fileID);
 		$q->bindParam("name", $name);
 		$q->bindParam("directory", $directory);
 		$q->bindParam("parts", $parts);
 		$q->bindParam("nodes", json_encode($info));
+		
 		$q->execute();
+		
 	}
 	
 	/**
@@ -272,11 +305,15 @@
 	 * 
 	 */
 	function findNodes($ammount = 20) {
+		
 		global $db, $findNode;
+		
 		$q = $db->prepare($findNode);
 		$q->bindParam("limit", $ammount);
 		$q->execute();
+		
 		return $q->fetchAll(PDO::FETCH_CLASS, "Node");
+		
 	}
 	
 	/**
@@ -284,11 +321,15 @@
 	 * 
 	 */
 	function splitData($data, $peices = 20) {
+		
 		$chunks = strlen($data) / $peices;
+		
 		if ($data % $peices > 0) {
 			$chunks++;
 		}
+		
 		return chunk_split($data, $chunks);
+		
 	}
 	
 	function encryptFile($path, $password) { // Encrypt the file
