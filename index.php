@@ -3,6 +3,8 @@
 	require_once "./FileObjects.php";
 	require_once "./lafslib.php"; 
 	
+	$lafs = new LAFS();
+	
 	$listing = null;
 	
 	$dir = "/";
@@ -15,13 +17,13 @@
 			$file = $_POST["file"];
 		} else {
 			
-			$listing = getDirectoryListing($_POST["dir"]);
+			$listing = $lafs->getDirectoryListing($_POST["dir"]);
 			
 		}
 		
 	} else {
 		
-		$listing = getDirectoryListing($_POST["dir"]);
+		$listing = $lafs->getDirectoryListing($_POST["dir"]);
 		
 	}
 ?>
