@@ -1,5 +1,7 @@
 <?php
-	
+	if (!defined("VERSION")) {
+		die("Error with LAFS");
+	}
 	/*	
 		DATABASE Schema
 		
@@ -35,6 +37,7 @@
 	require_once "./FileObjects.php";
 	
 	class LAFS {
+		
 		private $db;
 		private $addNode;
 		private $addFile;
@@ -48,7 +51,7 @@
 		private $addDirectory;
 		
 		function __construct() {
-			$browserType = "HEADNode"; // TODO: Use to limit access to file on storage nodes
+			$this->browserType = "HEADNode"; // TODO: Use to limit access to file on storage nodes
 			$this->iv = mcrypt_create_iv(mcrypt_get_iv_size(MCRYPT_RIJNDAEL_256, MCRYPT_MODE_CBC), MCRYPT_RAND); // Initiate our algorithm for hashing. TODO: Switch to pure-PHP version for MOAR compatability
 			
 			/* SQL stuff */
@@ -65,6 +68,18 @@
 			$this->db->exec("CREATE TABLE IF NOT EXISTS Nodes(name TEXT, ip TEXT)");
 			$this->db->exec("CREATE TABLE IF NOT EXISTS Files(fileID TEXT, name TEXT, directory TEXT, parts INT, nodes TEXT)");
 			$this->db->exec("CREATE TABLE IF NOT EXISTS Directories(name TEXT, superdir TEXT)");
+		}
+		
+		/**
+		 * Insert a node to be used;
+		 * The name is an ID and can be anything you want (Just like a hostname)
+		 * The URL is the URL to the PHP file. http(s)://(url or IP/(filename).php
+		 */
+		function addNode($name, $url) {
+			$insertNode = $this->db->prepare($this->addNode);
+			$insertNode->bindParam("name", $name);
+			$insertNode->bindParam("ip", $url);
+			
 		}
 		
 		function getDirectoryListing($dir = "/") {
@@ -138,7 +153,8 @@
 				
 				$postVars = array(
 					"fileID" => $fileID,
-					"part" => $x
+					"part" => $x,
+					"APIVERSION" => VERSION // Eventualy check for API version
 				);
 				
 				$responce = getPage($nodes[$x], $postVars);
@@ -229,7 +245,7 @@
 					
 					$node = $nodes[$x];
 					
-					$node->sendFile($findID, $fileData[$x], $x); // TODO Handle file upload errors
+					$node->sendFile($findID, $fileData[$x], $x, $this->browserType); // TODO Handle file upload errors
 					
 					if (!isset($storageInfo[$node->name])) { // Dont add if error
 						$storageInfo[$node->name] = array();

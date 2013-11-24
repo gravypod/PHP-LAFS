@@ -3,6 +3,8 @@
 	require_once "./FileObjects.php";
 	require_once "./lafslib.php"; 
 	
+	define("VERSION", 0);
+	
 	$lafs = new LAFS();
 	
 	$listing = null;

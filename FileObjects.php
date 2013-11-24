@@ -1,4 +1,7 @@
 <?php
+	if (!defined("VERSION")) {
+		die("Error with LAFS");
+	}
 	
 	class Node {
 		
@@ -9,7 +12,7 @@
 		 *
 		 * Send a file to a node
 		 */
-		function sendFile($fileID, $data, $part) {
+		function sendFile($fileID, $data, $part, $browserType) {
 			
 			$ch = curl_init();
 			curl_setopt($ch, CURLOPT_HEADER, 0);
